@@ -13,55 +13,96 @@ const Status = {
   REJECTED: 'rejected',
 };
 
+const INITIAL_STATE = {
+    showButton: true,
+    pictures: [],
+    page: 1,
+};
+
 class ImageGallery extends Component {
   state = {
-    pictures: [],
     error: null,
     status: Status.IDLE,
+    ...INITIAL_STATE,
   };
 
-  async componentDidUpdate(prevProps, prevState) {
-    if (prevProps.picturesName !== this.props.picturesName) {
-      const API = '26837460-553b8b6dbfe9a53b3dd0b8a3a';
-      const NAME = this.props.picturesName;
-      let pageNumber = '1';
-      const URL =
-        'https://pixabay.com/api/?q=' +
-        NAME +
-        '&page=' +
-        pageNumber +
-        '&key=' +
-        API +
-        '&image_type=photo&orientation=horizontal&per_page=12';
-      this.setState({ status: Status.PENDING });
+  fetchPictures = (q, page) => {
+    const options = {
+      params: {
+        key: '26837460-553b8b6dbfe9a53b3dd0b8a3a',
+        image_type: 'photo',
+        orientation: 'horizontal',
+        per_page: 12,
+        q,
+        page,
+      },
+    };
+    return axios.get('https://pixabay.com/api/', options);
+  };
 
-      try {
-        const response = await axios.get(URL);
-        if (response.data.total === 0) {
-          toast.warn(
-            `Sorry, there are no images matching your search query. Please try again.`
-          );
-            this.setState({ status: Status.IDLE });
+  componentDidUpdate(prevProps, prevState) {
+    const NAME = this.props.picturesName;
+
+    if (prevProps.picturesName !== this.props.picturesName) {
+      this.setState({
+        status: Status.PENDING,
+        ...INITIAL_STATE
+      });
+
+      if (this.state.page === 1) {
+      this.fetchPictures(NAME, this.state.page)
+    .then(response => {
+          if (response.data.total === 0) {
+            toast.warn(
+              `Sorry, there are no images matching your search query. Please try again.`
+            );
+            this.setState({ showButton: false, status: Status.IDLE });
             return;
-        }
-        return this.setState({
-          pictures: response.data.hits,
-          status: Status.RESOLVED,
+          }
+
+          return this.setState({
+            pictures: response.data.hits,
+            status: Status.RESOLVED,
+          });
+        })
+        .catch(error => {
+          this.setState({ error, status: Status.REJECTED });
         });
-      } catch (error) {
-        this.setState({ error, status: Status.REJECTED });
       }
     }
+
+        if (prevState.page !== this.state.page && prevProps.picturesName === this.props.picturesName) {
+          this.fetchPictures(NAME, this.state.page)
+            .then(response => {
+              if (response.data.hits.length < 12) {
+                this.setState({ showButton: false });
+                toast.warn(
+                  `Sorry, there are no more images.`
+                );
+              }
+              this.setState({
+                pictures: [...this.state.pictures, ...response.data.hits],
+                status: Status.RESOLVED,
+              });
+            })
+          .catch (error => {
+            this.setState({ error, status: Status.REJECTED });
+          })
+        }
   }
 
-    render() {
-    const { status, error, pictures} = this.state;
-    
+  changePage = () => {
+    this.setState({ page: this.state.page + 1 });
+  };
+
+  render() {
+    const { status, error, pictures, showButton } = this.state;
+
     if (status === 'idle') {
       return <h1>Please, enter something</h1>;
     }
     if (status === 'pending') {
-      return  <Loader/>
+      return <Loader />;
     }
     if (status === 'rejected') {
       return <h1>Whoops, something went wrong: {error.message}</h1>;
@@ -72,7 +113,7 @@ class ImageGallery extends Component {
           <ul className={s.gallery}>
             <ImageGalleryItem pictures={pictures} />
           </ul>
-          <Button />
+          {showButton && <Button changePage={this.changePage} />}
         </div>
       );
     }

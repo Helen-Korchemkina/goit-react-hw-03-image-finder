@@ -6,11 +6,12 @@ import s from './Searchbar.module.css';
 
 export default class Searchbar extends Component {
  state = {
-    picturesName: '',
+   picturesName: '',
     }
 
 handlePictureChange = event => {
     this.setState({picturesName: event.currentTarget.value.toLowerCase()})
+    
     }
     
 handleSubmit = event => {
@@ -18,7 +19,8 @@ handleSubmit = event => {
     if (this.state.picturesName.trim() === '') {
     return toast.error('non name');
     }
-    this.props.onSubmit(this.state.picturesName);
+  this.props.onSubmit(this.state.picturesName);
+  
     this.setState({ picturesName: '' });
 }
 
