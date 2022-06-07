@@ -9,19 +9,19 @@ export default class App extends Component {
     picturesName: '',
   };
 
-  handleFormSubmit = (picturesName) => {
+  handleFormSubmit = picturesName => {
     this.setState({ picturesName });
   };
 
-
-
   render() {
+    const formSubmit = this.handleFormSubmit;
+    const { picturesName } = this.state;
     return (
       <div className={s.app}>
-<Searchbar onSubmit={this.handleFormSubmit} /> 
-<ImageGallery picturesName={this.state.picturesName}/>  
-<ToastContainer position="top-center" theme="colored" />
+        <Searchbar onSubmit={formSubmit} />
+        <ImageGallery picturesName={picturesName} />
+        <ToastContainer position="top-center" theme="colored" />
       </div>
-    )
+    );
   }
 }

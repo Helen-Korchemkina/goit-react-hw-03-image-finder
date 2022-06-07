@@ -1,10 +1,11 @@
 import React, { Component } from 'react';
-import axios from 'axios';
 import { toast } from 'react-toastify';
+import PropTypes from 'prop-types';
 import ImageGalleryItem from '../ImageGalleryItem/ImageGalleryItem';
 import Button from '../Button/Button';
 import Loader from '../Loader/Loader';
 import Modal from '../Modal/Modal';
+import picturesAPI from '../services/api';
 import s from './ImageGallery.module.css';
 
 const Status = {
@@ -15,9 +16,9 @@ const Status = {
 };
 
 const INITIAL_STATE = {
-    showButton: true,
-    pictures: [],
-    page: 1,
+  showButton: true,
+  pictures: [],
+  page: 1,
 };
 
 class ImageGallery extends Component {
@@ -30,32 +31,31 @@ class ImageGallery extends Component {
     ...INITIAL_STATE,
   };
 
-  fetchPictures = (q, page) => {
-    const options = {
-      params: {
-        key: '26837460-553b8b6dbfe9a53b3dd0b8a3a',
-        image_type: 'photo',
-        orientation: 'horizontal',
-        per_page: 12,
-        q,
-        page,
-      },
-    };
-    return axios.get('https://pixabay.com/api/', options);
-  };
-
   componentDidUpdate(prevProps, prevState) {
     const NAME = this.props.picturesName;
 
     if (prevProps.picturesName !== this.props.picturesName) {
-      this.setState({
-        status: Status.PENDING,
-        ...INITIAL_STATE
-      });
+      this.fetchFirstPage(NAME);
+    }
 
-      if (this.state.page === 1) {
-      this.fetchPictures(NAME, this.state.page)
-    .then(response => {
+    if (
+      prevState.page !== this.state.page &&
+      prevProps.picturesName === this.props.picturesName
+    ) {
+      this.fetchNextPage(NAME);
+    }
+  }
+
+  fetchFirstPage = NAME => {
+    this.setState({
+      status: Status.PENDING,
+      ...INITIAL_STATE,
+    });
+
+    if (this.state.page === 1) {
+      picturesAPI
+        .fetchPictures(NAME, this.state.page)
+        .then(response => {
           if (response.data.total === 0) {
             toast.warn(
               `Sorry, there are no images matching your search query. Please try again.`
@@ -63,7 +63,16 @@ class ImageGallery extends Component {
             this.setState({ showButton: false, status: Status.IDLE });
             return;
           }
-
+          if (response.data.hits.length < 12) {
+          toast.warn(`Sorry, there are no more images.`);
+          this.setState({
+            pictures: [...this.state.pictures, ...response.data.hits],
+            status: Status.RESOLVED,
+            showLoader: false,
+            showButton: false,
+          })
+            return;
+        }
           return this.setState({
             pictures: response.data.hits,
             status: Status.RESOLVED,
@@ -72,45 +81,55 @@ class ImageGallery extends Component {
         .catch(error => {
           this.setState({ error, status: Status.REJECTED });
         });
-      }
     }
+  };
 
-        if (prevState.page !== this.state.page && prevProps.picturesName === this.props.picturesName) {
-          this.setState({ showLoader: true, showButton: false });
-          this.fetchPictures(NAME, this.state.page)
-            .then(response => {
-              if (response.data.hits.length < 12) {
-                this.setState({ showButton: false });
-                toast.warn(
-                  `Sorry, there are no more images.`
-                );
-              }
-              this.setState({
-                pictures: [...this.state.pictures, ...response.data.hits],
-                status: Status.RESOLVED,
-                showLoader: false,
-                showButton: true,
-              });
-            })
-          .catch (error => {
-            this.setState({ error, status: Status.REJECTED });
+  fetchNextPage = NAME => {
+    this.setState({ showLoader: true, showButton: false });
+    picturesAPI
+      .fetchPictures(NAME, this.state.page)
+      .then(response => {
+        if (response.data.hits.length < 12) {
+          toast.warn(`Sorry, there are no more images.`);
+          this.setState({
+            pictures: [...this.state.pictures, ...response.data.hits],
+            status: Status.RESOLVED,
+            showLoader: false,
+            showButton: false,
           })
+        } else {
+          this.setState({
+            pictures: [...this.state.pictures, ...response.data.hits],
+            status: Status.RESOLVED,
+            showLoader: false,
+            showButton: true,
+          });
         }
-  }
+      })
+      .catch(error => {
+        this.setState({ error, status: Status.REJECTED });
+      });
+  };
 
   changePage = () => {
     this.setState({ page: this.state.page + 1 });
   };
 
-    toggleModal = (picture) => {
-      this.setState(({ showModal }) => ({ showModal: !showModal }))
-            this.setState({ bigPicture: picture})
-
-  }
-
+  toggleModal = picture => {
+    this.setState(({ showModal }) => ({ showModal: !showModal }));
+    this.setState({ bigPicture: picture });
+  };
 
   render() {
-    const { status, error, pictures, showButton, showLoader } = this.state;
+    const {
+      status,
+      error,
+      pictures,
+      showButton,
+      showLoader,
+      showModal,
+      bigPicture,
+    } = this.state;
     if (status === 'idle') {
       return <h1>Please, enter something</h1>;
     }
@@ -127,14 +146,18 @@ class ImageGallery extends Component {
             <ImageGalleryItem pictures={pictures} onClick={this.toggleModal} />
           </ul>
           {showButton && <Button changePage={this.changePage} />}
-          {showLoader && <Loader/>}
-          {this.state.showModal && <Modal toggleModal={this.toggleModal}
-            bigPicture={this.state.bigPicture}/>}
+          {showLoader && <Loader />}
+          {showModal && (
+            <Modal toggleModal={this.toggleModal} bigPicture={bigPicture} />
+          )}
         </div>
       );
     }
-    
   }
 }
+
+ImageGallery.propTypes = {
+  picturesName: PropTypes.string.isRequired,
+};
 
 export default ImageGallery;
