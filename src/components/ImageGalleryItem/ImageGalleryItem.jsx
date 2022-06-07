@@ -1,10 +1,11 @@
 import React from "react";
 import s from './ImageGalleryItem.module.css';
 
-const ImageGalleryItem = ({ pictures }) => (
+const ImageGalleryItem = ({ pictures, onClick }) => (
     pictures.map(picture => (
         <li className={s.galleryItem} key={picture.id}>
-            <img src={picture.webformatURL} alt={picture.tags} />
+            <img onClick={() => onClick(picture)} src={picture.webformatURL}
+            alt={picture.tags} />
         </li>))
 );
 

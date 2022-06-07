@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import ImageGalleryItem from '../ImageGalleryItem/ImageGalleryItem';
 import Button from '../Button/Button';
 import Loader from '../Loader/Loader';
+import Modal from '../Modal/Modal';
 import s from './ImageGallery.module.css';
 
 const Status = {
@@ -23,6 +24,9 @@ class ImageGallery extends Component {
   state = {
     error: null,
     status: Status.IDLE,
+    showModal: false,
+    showLoader: false,
+    bigPicture: null,
     ...INITIAL_STATE,
   };
 
@@ -72,6 +76,7 @@ class ImageGallery extends Component {
     }
 
         if (prevState.page !== this.state.page && prevProps.picturesName === this.props.picturesName) {
+          this.setState({ showLoader: true, showButton: false });
           this.fetchPictures(NAME, this.state.page)
             .then(response => {
               if (response.data.hits.length < 12) {
@@ -83,6 +88,8 @@ class ImageGallery extends Component {
               this.setState({
                 pictures: [...this.state.pictures, ...response.data.hits],
                 status: Status.RESOLVED,
+                showLoader: false,
+                showButton: true,
               });
             })
           .catch (error => {
@@ -95,9 +102,15 @@ class ImageGallery extends Component {
     this.setState({ page: this.state.page + 1 });
   };
 
-  render() {
-    const { status, error, pictures, showButton } = this.state;
+    toggleModal = (picture) => {
+      this.setState(({ showModal }) => ({ showModal: !showModal }))
+            this.setState({ bigPicture: picture})
 
+  }
+
+
+  render() {
+    const { status, error, pictures, showButton, showLoader } = this.state;
     if (status === 'idle') {
       return <h1>Please, enter something</h1>;
     }
@@ -111,12 +124,16 @@ class ImageGallery extends Component {
       return (
         <div>
           <ul className={s.gallery}>
-            <ImageGalleryItem pictures={pictures} />
+            <ImageGalleryItem pictures={pictures} onClick={this.toggleModal} />
           </ul>
           {showButton && <Button changePage={this.changePage} />}
+          {showLoader && <Loader/>}
+          {this.state.showModal && <Modal toggleModal={this.toggleModal}
+            bigPicture={this.state.bigPicture}/>}
         </div>
       );
     }
+    
   }
 }
 
