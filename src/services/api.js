@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-function fetchPictures(q, page) {
+const fetchPictures = async (q, page) => {
     const options = {
       params: {
         key: '26837460-553b8b6dbfe9a53b3dd0b8a3a',
@@ -10,8 +10,9 @@ function fetchPictures(q, page) {
         q,
         page,
       },
-    };
-    return axios.get('https://pixabay.com/api/', options);
+  };
+  const response = await axios.get('https://pixabay.com/api/', options);
+    return response;
 };
   
 const api = {

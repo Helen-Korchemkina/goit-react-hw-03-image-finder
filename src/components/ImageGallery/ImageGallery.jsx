@@ -1,11 +1,11 @@
 import React, { Component } from 'react';
 import { toast } from 'react-toastify';
 import PropTypes from 'prop-types';
-import ImageGalleryItem from '../ImageGalleryItem/ImageGalleryItem';
+import ImageGalleryItem from './ImageGalleryItem/ImageGalleryItem';
 import Button from '../Button/Button';
 import Loader from '../Loader/Loader';
 import Modal from '../Modal/Modal';
-import picturesAPI from '../services/api';
+import picturesAPI from '../../services/api';
 import s from './ImageGallery.module.css';
 
 const Status = {
@@ -31,84 +31,87 @@ class ImageGallery extends Component {
     ...INITIAL_STATE,
   };
 
-  componentDidUpdate(prevProps, prevState) {
-    const NAME = this.props.picturesName;
+  async componentDidUpdate(prevProps, prevState) {
+    const searchQuery = this.props.picturesName;
 
     if (prevProps.picturesName !== this.props.picturesName) {
-      this.fetchFirstPage(NAME);
+      await this.fetchFirstPage(searchQuery);
     }
 
     if (
       prevState.page !== this.state.page &&
       prevProps.picturesName === this.props.picturesName
     ) {
-      this.fetchNextPage(NAME);
+      await this.fetchNextPage(searchQuery);
     }
   }
 
-  fetchFirstPage = NAME => {
+  fetchFirstPage = async searchQuery => {
     this.setState({
       status: Status.PENDING,
       ...INITIAL_STATE,
     });
 
     if (this.state.page === 1) {
-      picturesAPI
-        .fetchPictures(NAME, this.state.page)
-        .then(response => {
-          if (response.data.total === 0) {
-            toast.warn(
-              `Sorry, there are no images matching your search query. Please try again.`
-            );
-            this.setState({ showButton: false, status: Status.IDLE });
-            return;
-          }
-          if (response.data.hits.length < 12) {
+      try {
+        const picture = await picturesAPI.fetchPictures(
+          searchQuery,
+          this.state.page
+        );
+        if (picture.data.total === 0) {
+          toast.warn(
+            `Sorry, there are no images matching your search query. Please try again.`
+          );
+          this.setState({ showButton: false, status: Status.IDLE });
+          return;
+        }
+        if (picture.data.hits.length < 12) {
           toast.warn(`Sorry, there are no more images.`);
           this.setState({
-            pictures: [...this.state.pictures, ...response.data.hits],
+            pictures: [...this.state.pictures, ...picture.data.hits],
             status: Status.RESOLVED,
             showLoader: false,
             showButton: false,
-          })
-            return;
-        }
-          return this.setState({
-            pictures: response.data.hits,
-            status: Status.RESOLVED,
           });
-        })
-        .catch(error => {
-          this.setState({ error, status: Status.REJECTED });
+          return;
+        }
+        this.setState({
+          pictures: picture.data.hits,
+          status: Status.RESOLVED,
         });
+      } catch (error) {
+        this.setState({ error, status: Status.REJECTED });
+      }
     }
   };
 
-  fetchNextPage = NAME => {
+  fetchNextPage = async searchQuery => {
     this.setState({ showLoader: true, showButton: false });
-    picturesAPI
-      .fetchPictures(NAME, this.state.page)
-      .then(response => {
-        if (response.data.hits.length < 12) {
-          toast.warn(`Sorry, there are no more images.`);
-          this.setState({
-            pictures: [...this.state.pictures, ...response.data.hits],
-            status: Status.RESOLVED,
-            showLoader: false,
-            showButton: false,
-          })
-        } else {
-          this.setState({
-            pictures: [...this.state.pictures, ...response.data.hits],
-            status: Status.RESOLVED,
-            showLoader: false,
-            showButton: true,
-          });
-        }
-      })
-      .catch(error => {
-        this.setState({ error, status: Status.REJECTED });
-      });
+
+    try {
+      const picture = await picturesAPI.fetchPictures(
+        searchQuery,
+        this.state.page
+      );
+      if (picture.data.hits.length < 12) {
+        toast.warn(`Sorry, there are no more images.`);
+        this.setState({
+          pictures: [...this.state.pictures, ...picture.data.hits],
+          status: Status.RESOLVED,
+          showLoader: false,
+          showButton: false,
+        });
+      } else {
+        this.setState({
+          pictures: [...this.state.pictures, ...picture.data.hits],
+          status: Status.RESOLVED,
+          showLoader: false,
+          showButton: true,
+        });
+      }
+    } catch (error) {
+      this.setState({ error, status: Status.REJECTED });
+    }
   };
 
   changePage = () => {
@@ -130,29 +133,35 @@ class ImageGallery extends Component {
       showModal,
       bigPicture,
     } = this.state;
-    if (status === 'idle') {
-      return <h1>Please, enter something</h1>;
-    }
-    if (status === 'pending') {
-      return <Loader />;
-    }
-    if (status === 'rejected') {
-      return <h1>Whoops, something went wrong: {error.message}</h1>;
-    }
-    if (status === 'resolved') {
-      return (
-        <div>
-          <ul className={s.gallery}>
-            <ImageGalleryItem pictures={pictures} onClick={this.toggleModal} />
-          </ul>
-          {showButton && <Button changePage={this.changePage} />}
-          {showLoader && <Loader />}
-          {showModal && (
-            <Modal toggleModal={this.toggleModal} bigPicture={bigPicture} />
-          )}
-        </div>
-      );
-    }
+    return (
+      <>
+        {status === 'idle' && <h1>Please, enter something</h1>}
+        {status === 'pending' && <Loader />}
+        {status === 'rejected' && (
+          <h1>Whoops, something went wrong: {error.message}</h1>
+        )}
+        {status === 'resolved' && (
+          <div>
+            <ul className={s.gallery}>
+              {pictures.map((picture) => {
+                return (
+                  <ImageGalleryItem
+                    key={picture.id}
+                    picture={picture}
+                    onClick={this.toggleModal}
+                  />
+                );
+              })}
+            </ul>
+            {showButton && <Button changePage={this.changePage} />}
+            {showLoader && <Loader />}
+            {showModal && (
+              <Modal toggleModal={this.toggleModal} bigPicture={bigPicture} />
+            )}
+          </div>
+        )}
+      </>
+    );
   }
 }
 
